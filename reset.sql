@@ -1,3 +1,13 @@
+-- Reset script to start fresh
+-- Run this to clear all data and reset the database
+
+-- Drop existing tables
+DROP TABLE IF EXISTS critical_feedback;
+DROP TABLE IF EXISTS daily_metrics;
+DROP TABLE IF EXISTS themes;
+DROP TABLE IF EXISTS feedback;
+
+-- Recreate tables from schema
 -- Feedback entries table
 CREATE TABLE feedback (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

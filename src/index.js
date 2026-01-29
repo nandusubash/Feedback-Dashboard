@@ -5,7 +5,31 @@
  * - D1 database for storage
  * - Workers AI for sentiment analysis and theme extraction
  * - KV for caching analytics
+ * - Static file serving for dashboard UI
  */
+
+import { seedDatabase } from './seed.js';
+import indexHtml from '../public/index.html';
+import stylesCss from '../public/styles.css';
+
+/**
+ * Helper function to read static files
+ * @param {string} path - File path relative to public/ directory
+ * @returns {string} File content
+ */
+function readFile(path) {
+  const files = {
+    '/': indexHtml,
+    '/index.html': indexHtml,
+    '/styles.css': stylesCss,
+  };
+
+  if (path in files) {
+    return files[path];
+  }
+
+  throw new Error(`File not found: ${path}`);
+}
 
 export default {
   async fetch(request, env, ctx) {
@@ -29,21 +53,102 @@ export default {
     }
 
     try {
-      // Route: GET / - Home page
-      if (path === '/' && method === 'GET') {
-        return new Response(
-          '<html><body><h1>Feedback Dashboard API - Coming Soon</h1></body></html>',
-          {
+      // ========================================
+      // STATIC FILE ROUTES
+      // ========================================
+
+      // Route: GET / - Serve dashboard HTML
+      if ((path === '/' || path === '/index.html') && method === 'GET') {
+        try {
+          const content = readFile(path === '/' ? '/' : path);
+          return new Response(content, {
             status: 200,
             headers: {
               ...corsHeaders,
-              'Content-Type': 'text/html',
+              'Content-Type': 'text/html; charset=utf-8',
             },
-          }
-        );
+          });
+        } catch (error) {
+          return new Response('File not found', {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+          });
+        }
       }
 
-      // Route: POST /api/feedback - Create new feedback
+      // Route: GET /styles.css - Serve CSS
+      if (path === '/styles.css' && method === 'GET') {
+        try {
+          const content = readFile('/styles.css');
+          return new Response(content, {
+            status: 200,
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'text/css; charset=utf-8',
+            },
+          });
+        } catch (error) {
+          return new Response('File not found', {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+          });
+        }
+      }
+
+      // Route: GET /cards.css - Serve Cards CSS
+      if (path === '/cards.css' && method === 'GET') {
+        try {
+          const content = readFile('/cards.css');
+          return new Response(content, {
+            status: 200,
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'text/css; charset=utf-8',
+            },
+          });
+        } catch (error) {
+          return new Response('File not found', {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+          });
+        }
+      }
+
+      // Route: GET /critical.css - Serve Critical CSS
+      if (path === '/critical.css' && method === 'GET') {
+        try {
+          const content = readFile('/critical.css');
+          return new Response(content, {
+            status: 200,
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'text/css; charset=utf-8',
+            },
+          });
+        } catch (error) {
+          return new Response('File not found', {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+          });
+        }
+      }
+
+      // Route: GET /app.js - Serve JavaScript (if exists)
+      if (path === '/app.js' && method === 'GET') {
+        return new Response('// No app.js file yet', {
+          status: 404,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/javascript; charset=utf-8',
+          },
+        });
+      }
+
+      // ========================================
+      // API ROUTES
+      // ========================================
+
+      // Route: POST /api/feedback - Create new feedback entry
       if (path === '/api/feedback' && method === 'POST') {
         const { source, content, author } = await request.json();
 
@@ -219,16 +324,44 @@ export default {
         });
       }
 
-      // Route: POST /api/analyze - Analyze unprocessed feedback with Workers AI
+      // Route: GET /api/seed - Seed database with mock data
+      if (path === '/api/seed' && method === 'GET') {
+        try {
+          const result = await seedDatabase(env);
+          
+          // Clear analytics cache so dashboard shows fresh data immediately
+          await env.KV.delete('analytics:latest');
+          console.log('Analytics cache cleared after seeding');
+          
+          return new Response(JSON.stringify(result), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        } catch (error) {
+          console.error('Error seeding database:', error);
+          return new Response(
+            JSON.stringify({ 
+              error: 'Failed to seed database', 
+              message: error.message 
+            }),
+            {
+              status: 500,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            }
+          );
+        }
+      }
+
+      // Route: POST /api/analyze - Analyze all feedback (re-analyze if needed)
       if (path === '/api/analyze' && method === 'POST') {
-        // Find all unprocessed feedback
-        const { results: unprocessedFeedback } = await env.DB.prepare(
-          'SELECT id, content FROM feedback WHERE processed = 0'
+        // Find all feedback (process or re-process)
+        const { results: allFeedback } = await env.DB.prepare(
+          'SELECT id, content FROM feedback'
         ).all();
 
-        if (unprocessedFeedback.length === 0) {
+        if (allFeedback.length === 0) {
           return new Response(
-            JSON.stringify({ message: 'No unprocessed feedback found', analyzed: 0 }),
+            JSON.stringify({ message: 'No feedback found in database', analyzed: 0 }),
             {
               status: 200,
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -239,52 +372,130 @@ export default {
         let analyzedCount = 0;
 
         // Process each feedback item
-        for (const feedback of unprocessedFeedback) {
+        for (const feedback of allFeedback) {
           try {
-            // 1. Analyze sentiment
-            const sentimentPrompt = `Analyze sentiment of this feedback. Return JSON: {sentiment: 'positive'|'neutral'|'negative', score: -1 to 1}. Feedback: ${feedback.content}`;
-            const sentimentResponse = await env.AI.run('@cf/meta/llama-3-8b-instruct', {
-              messages: [{ role: 'user', content: sentimentPrompt }],
-            });
-            
+            // 1. Analyze sentiment - use content-based analysis as primary method
+            const content = feedback.content.toLowerCase();
             let sentiment = 'neutral';
             let sentimentScore = 0;
             
-            try {
-              const sentimentData = JSON.parse(sentimentResponse.response);
-              sentiment = sentimentData.sentiment || 'neutral';
-              sentimentScore = sentimentData.score || 0;
-            } catch (e) {
-              console.error('Error parsing sentiment response:', e);
-            }
-
-            // 2. Extract themes
-            const themesPrompt = `Extract 1-3 key themes from this feedback as lowercase strings. Return JSON array like: ['performance', 'ui_ux']. Feedback: ${feedback.content}`;
-            const themesResponse = await env.AI.run('@cf/meta/llama-3-8b-instruct', {
-              messages: [{ role: 'user', content: themesPrompt }],
+            // Comprehensive keyword-based sentiment detection
+            const positiveWords = [
+              'great', 'excellent', 'love', 'amazing', 'awesome', 'fantastic', 'good', 'helpful', 
+              'perfect', 'wonderful', 'best', 'thank', 'appreciate', 'impressed', 'outstanding',
+              'brilliant', 'superb', 'nice', 'beautiful', 'easy', 'smooth', 'fast', 'efficient',
+              'reliable', 'solid', 'clean', 'intuitive', 'user-friendly', 'works well', 'happy',
+              'satisfied', 'pleased', 'delighted', 'recommend', 'useful', 'valuable', 'quality'
+            ];
+            
+            const negativeWords = [
+              'bad', 'terrible', 'hate', 'awful', 'worst', 'horrible', 'broken', 'bug', 'crash',
+              'error', 'issue', 'problem', 'frustrat', 'disappoint', 'annoying', 'useless', 'slow',
+              'difficult', 'confusing', 'complicated', 'hard', 'poor', 'fail', 'wrong', 'mess',
+              'sucks', 'waste', 'lacking', 'missing', 'unable', 'cannot', "can't", "doesn't work",
+              'not working', 'stopped', 'freezes', 'laggy', 'buggy', 'glitch', 'unstable'
+            ];
+            
+            // Also check for negation words that might flip sentiment
+            const negationWords = ['not', 'no', "don't", "doesn't", "didn't", 'never', 'neither', 'nor', 'nothing'];
+            const hasNegation = negationWords.some(word => content.includes(word));
+            
+            let positiveCount = 0;
+            let negativeCount = 0;
+            
+            positiveWords.forEach(word => {
+              if (content.includes(word)) positiveCount++;
             });
             
-            let themes = [];
-            try {
-              themes = JSON.parse(themesResponse.response);
-              if (!Array.isArray(themes)) {
-                themes = [];
+            negativeWords.forEach(word => {
+              if (content.includes(word)) negativeCount++;
+            });
+            
+            // Determine sentiment with lower threshold
+            if (positiveCount > negativeCount) {
+              sentiment = 'positive';
+              sentimentScore = Math.min(0.4 + (positiveCount * 0.15), 1);
+              // If negation is present with positive words, reduce score
+              if (hasNegation && positiveCount <= 2) {
+                sentimentScore *= 0.5;
+                if (sentimentScore < 0.3) {
+                  sentiment = 'neutral';
+                  sentimentScore = 0;
+                }
               }
-            } catch (e) {
-              console.error('Error parsing themes response:', e);
+            } else if (negativeCount > positiveCount) {
+              sentiment = 'negative';
+              sentimentScore = Math.max(-0.4 - (negativeCount * 0.15), -1);
+            } else if (positiveCount > 0 && negativeCount > 0) {
+              // Mixed sentiment - lean toward neutral but with slight bias
+              sentiment = 'neutral';
+              sentimentScore = (positiveCount - negativeCount) * 0.1;
+            } else {
+              // No clear indicators - truly neutral
+              sentiment = 'neutral';
+              sentimentScore = 0;
             }
 
-            // 3. Classify urgency
-            const urgencyPrompt = `Classify urgency as: low, medium, high, or critical. Return only one word. Feedback: ${feedback.content}`;
-            const urgencyResponse = await env.AI.run('@cf/meta/llama-3-8b-instruct', {
-              messages: [{ role: 'user', content: urgencyPrompt }],
-            });
+            // 2. Extract themes - keyword-based (more reliable)
+            let themes = [];
             
-            let urgency = 'medium';
-            const urgencyText = urgencyResponse.response.trim().toLowerCase();
-            if (['low', 'medium', 'high', 'critical'].includes(urgencyText)) {
-              urgency = urgencyText;
+            // Theme detection based on keywords
+            if (content.includes('slow') || content.includes('performance') || content.includes('speed') || content.includes('fast') || content.includes('lag')) {
+              themes.push('performance');
             }
+            if (content.includes('ui') || content.includes('design') || content.includes('interface') || content.includes('look') || content.includes('layout') || content.includes('ux')) {
+              themes.push('ui_ux');
+            }
+            if (content.includes('price') || content.includes('cost') || content.includes('expensive') || content.includes('cheap') || content.includes('payment') || content.includes('subscription')) {
+              themes.push('pricing');
+            }
+            if (content.includes('bug') || content.includes('error') || content.includes('crash') || content.includes('broken') || content.includes('issue') || content.includes('problem')) {
+              themes.push('bugs');
+            }
+            if (content.includes('feature') || content.includes('request') || content.includes('add') || content.includes('need') || content.includes('want') || content.includes('wish')) {
+              themes.push('features');
+            }
+            if (content.includes('doc') || content.includes('documentation') || content.includes('guide') || content.includes('tutorial') || content.includes('help')) {
+              themes.push('documentation');
+            }
+            if (content.includes('support') || content.includes('customer service') || content.includes('response') || content.includes('help')) {
+              themes.push('support');
+            }
+            if (content.includes('security') || content.includes('privacy') || content.includes('safe') || content.includes('data')) {
+              themes.push('security');
+            }
+            if (content.includes('integrat') || content.includes('api') || content.includes('connect')) {
+              themes.push('integration');
+            }
+            
+            // If no themes detected, use general category
+            if (themes.length === 0) {
+              themes.push('general');
+            }
+            
+            themes = themes.slice(0, 3);
+
+            // 3. Classify urgency - keyword-based
+            let urgency = 'medium';
+            
+            // Critical urgency keywords
+            if (content.includes('crash') || content.includes('broken') || content.includes('urgent') || 
+                content.includes('critical') || content.includes('down') || content.includes('not working') ||
+                content.includes('can\'t use') || content.includes('cannot use')) {
+              urgency = 'critical';
+            }
+            // High urgency keywords
+            else if (content.includes('bug') || content.includes('error') || content.includes('issue') || 
+                     content.includes('problem') || content.includes('fail') || content.includes('wrong')) {
+              urgency = 'high';
+            }
+            // Low urgency keywords
+            else if (content.includes('nice') || content.includes('would be') || content.includes('suggestion') ||
+                     content.includes('could') || content.includes('maybe') || content.includes('consider') ||
+                     content.includes('love to see')) {
+              urgency = 'low';
+            }
+            // Medium is default for everything else
 
             // Update feedback record
             await env.DB.prepare(
@@ -295,9 +506,23 @@ export default {
               .bind(sentiment, sentimentScore, urgency, JSON.stringify(themes), feedback.id)
               .run();
 
+            // If critical, also insert into critical_feedback table
+            if (urgency === 'critical') {
+              await env.DB.prepare(
+                `INSERT INTO critical_feedback (feedback_id, source, content, author, sentiment, sentiment_score, themes, created_at)
+                 SELECT id, source, content, author, ?, ?, ?, created_at
+                 FROM feedback WHERE id = ?`
+              )
+                .bind(sentiment, sentimentScore, JSON.stringify(themes), feedback.id)
+                .run();
+              console.log(`🚨 CRITICAL feedback ${feedback.id} flagged!`);
+            }
+
             analyzedCount++;
+            console.log(`Analyzed feedback ${feedback.id}: ${sentiment} (${sentimentScore}), urgency: ${urgency}, themes: ${themes.join(', ')}`);
           } catch (error) {
             console.error(`Error analyzing feedback ${feedback.id}:`, error);
+            // Continue processing other items even if one fails
           }
         }
 
@@ -308,7 +533,7 @@ export default {
           JSON.stringify({
             success: true,
             analyzed: analyzedCount,
-            total: unprocessedFeedback.length,
+            total: allFeedback.length,
           }),
           {
             status: 200,
