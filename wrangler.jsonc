@@ -65,5 +65,39 @@
 	],
 	"ai": {
 		"binding": "AI"
+	},
+	"workflows": [
+		{
+			"binding": "WORKFLOW",
+			"name": "feedback-analysis-pipeline",
+			"class_name": "FeedbackWorkflow"
+		}
+	],
+	"vectorize": [
+		{
+			"binding": "VECTORIZE",
+			"index_name": "feedback-embeddings"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "BUCKET",
+			"bucket_name": "feedback-attachments"
+		}
+	],
+	"observability": {
+		"enabled": false,
+		"head_sampling_rate": 1,
+		"logs": {
+			"enabled": true,
+			"head_sampling_rate": 1,
+			"persist": true,
+			"invocation_logs": true
+		},
+		"traces": {
+			"enabled": true,
+			"persist": true,
+			"head_sampling_rate": 1
+		}
 	}
 }
