@@ -117,17 +117,21 @@ export async function searchSimilar(query, limit = 10, env) {
       returnMetadata: true
     });
 
-    // Transform results into a clean format
-    const matches = results.matches.map(match => ({
-      id: parseInt(match.id),
-      content: match.metadata.content,
-      similarity: match.score // Cosine similarity score (0-1, higher is more similar)
-    }));
+    // Transform results into a clean format and filter by similarity threshold
+    const SIMILARITY_THRESHOLD = 0.6; // Only return matches with 60%+ similarity
+    
+    const matches = results.matches
+      .map(match => ({
+        id: parseInt(match.id),
+        content: match.metadata.content,
+        similarity: match.score // Cosine similarity score (0-1, higher is more similar)
+      }))
+      .filter(match => match.similarity >= SIMILARITY_THRESHOLD);
 
     // Sort by similarity score (highest first)
     matches.sort((a, b) => b.similarity - a.similarity);
 
-    console.log(`✅ Found ${matches.length} similar feedback items`);
+    console.log(`✅ Found ${matches.length} similar feedback items (threshold: ${SIMILARITY_THRESHOLD})`);
     return matches;
 
   } catch (error) {
@@ -164,7 +168,7 @@ export async function indexAllFeedback(env) {
 
     let indexed = 0;
     let failed = 0;
-    const batchSize = 10; // Process in batches to avoid overwhelming the AI
+    const batchSize = 5; // Process in smaller batches to avoid rate limiting
 
     // Process feedback in batches
     for (let i = 0; i < allFeedback.length; i += batchSize) {
@@ -204,6 +208,12 @@ export async function indexAllFeedback(env) {
           failed += vectors.length;
           indexed -= vectors.length;
         }
+      }
+
+      // Add delay between batches to avoid rate limiting (except for last batch)
+      if (i + batchSize < allFeedback.length) {
+        console.log('⏳ Waiting 2 seconds before next batch...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
 

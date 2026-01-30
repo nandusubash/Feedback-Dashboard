@@ -785,7 +785,7 @@
           resultsContent.innerHTML = data.results.map(item => {
             const similarity = (item.similarity * 100).toFixed(0);
             const similarityClass = similarity >= 80 ? 'high' : similarity >= 50 ? 'medium' : 'low';
-            const themesHtml = item.themes ? JSON.parse(item.themes).map(t => `<span class="theme-tag">${t}</span>`).join('') : '';
+            const themesHtml = item.themes && Array.isArray(item.themes) ? item.themes.map(t => `<span class="theme-tag">${t}</span>`).join('') : '';
             
             return `
               <div class="search-result-card" onclick="showFeedbackDetail(${JSON.stringify(item).replace(/"/g, '&quot;')})">
