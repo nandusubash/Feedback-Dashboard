@@ -4,60 +4,163 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Feedback Intelligence Dashboard</title>
-  <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="critical.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(to bottom, #f7f9fc 0%, #ffffff 100%);
+      color: #1d2125;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+    }
+    .header {
+      background: #2d2d2d;
+      padding: 1rem 2rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .header h1 {
+      color: #ffffff;
+      font-size: 1.125rem;
+      font-weight: 600;
+      margin: 0;
+      letter-spacing: -0.01em;
+    }
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .header-actions {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+    .analysis-status {
+      background: rgba(16, 185, 129, 0.1);
+      padding: 0.375rem 0.875rem;
+      border-radius: 4px;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: #059669;
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+    .container {
+      max-width: 1400px;
+      margin: 1.5rem auto;
+      padding: 0 2rem;
+    }
+    .ai-search-container {
+      background: white;
+      border-radius: 8px;
+      padding: 1.75rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      margin-bottom: 1.5rem;
+      border: 1px solid #e1e4e8;
+    }
+    .ai-search-header h2 {
+      color: #1d2125;
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      text-align: left;
+    }
+    .feedback-table {
+      background: white;
+      border-radius: 8px;
+      padding: 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      overflow: hidden;
+      border: 1px solid #e1e4e8;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    thead {
+      background: #fafbfc;
+      border-bottom: 1px solid #e1e4e8;
+    }
+    th {
+      text-align: left;
+      padding: 1rem;
+      color: #626f86;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    td {
+      padding: 1rem;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 0.875rem;
+      color: #1d2125;
+    }
+    tbody tr {
+      transition: background 0.15s ease;
+    }
+    tbody tr:hover {
+      background: #f8f9fa;
+      cursor: pointer;
+    }
+    .filter-controls {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .filter-select {
+      padding: 0.5rem 0.875rem;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      background: white;
+      color: #1d2125;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .filter-select:hover {
+      border-color: #c1c7cd;
+    }
+    .filter-select:focus {
+      outline: none;
+      border-color: #5e6ad2;
+      box-shadow: 0 0 0 3px rgba(94, 106, 210, 0.1);
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.625rem;
+      border-radius: 3px;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: capitalize;
+    }
+    .badge-low { background: #d3f5e8; color: #00875a; }
+    .badge-medium { background: #fff4e6; color: #ff8b00; }
+    .badge-high { background: #ffebe6; color: #de350b; }
+    .badge-on-track { background: #deebff; color: #0052cc; }
+    .badge-at-risk { background: #fff4e6; color: #ff8b00; }
+    .badge-off-track { background: #ffebe6; color: #de350b; }
+  </style>
+  <link rel="stylesheet" href="styles.css?v=3.0">
+  <link rel="stylesheet" href="toast.css?v=3.0">
 </head>
 <body>
   <div class="header">
     <div class="header-content">
-      <h1>📊 Feedback Intelligence Dashboard</h1>
+      <h1>Feedback Dashboard</h1>
       <div class="header-actions">
         <div class="analysis-status" id="analysisStatus">
-          <span id="statusText">Ready</span>
+          <span id="statusText">Live</span>
           <span class="status-badge" id="statusBadge" style="display: none;"></span>
         </div>
-        <button class="btn btn-index" id="indexEmbeddingsBtn" title="Index all feedback for AI search">
-          <span class="btn-icon" id="indexIcon">🔄</span>
-          <span class="btn-text">Index All Feedback</span>
-        </button>
-        <button class="btn btn-ai-analysis" id="runAiAnalysisBtn">
-          <span class="btn-icon" id="aiAnalysisIcon">🤖</span>
-          <span class="btn-text">Run AI Analysis</span>
-        </button>
       </div>
     </div>
   </div>
 
-  <div class="welcome-guide" id="welcomeGuide">
-    <div class="guide-content">
-      <h2>👋 Welcome to Your Feedback Dashboard</h2>
-      <p>This dashboard helps you manage and analyze customer feedback from multiple sources.</p>
-      <div class="guide-steps">
-        <div class="guide-step">
-          <span class="step-number">1</span>
-          <div class="step-content">
-            <strong>View Feedback</strong>
-            <p>All feedback is displayed in the table below. Click any row to see full details.</p>
-          </div>
-        </div>
-        <div class="guide-step">
-          <span class="step-number">2</span>
-          <div class="step-content">
-            <strong>Filter & Search</strong>
-            <p>Use the filters to find specific feedback by source, sentiment, or urgency.</p>
-          </div>
-        </div>
-        <div class="guide-step">
-          <span class="step-number">3</span>
-          <div class="step-content">
-            <strong>Analyze</strong>
-            <p>Click "Analyze Feedback" to automatically categorize sentiment, urgency, and themes.</p>
-          </div>
-        </div>
-      </div>
-      <button class="btn btn-primary" onclick="document.getElementById('welcomeGuide').style.display='none'">Got it! Show me the dashboard</button>
-    </div>
-  </div>
 
   <div class="metrics-grid">
     <div class="metric-card">
@@ -75,7 +178,7 @@
       <!-- AI-Powered Search Section -->
       <div class="ai-search-container">
         <div class="ai-search-header">
-          <h2>🔍 Find Similar Feedback</h2>
+          <h2>Search Feedback</h2>
           <p class="ai-search-subtitle">AI-Powered Semantic Search</p>
         </div>
         <div class="ai-search-box">
@@ -83,7 +186,7 @@
             type="text" 
             class="ai-search-input" 
             id="aiSearchInput" 
-            placeholder="e.g., 'dashboard performance issues' or 'login problems'"
+            placeholder="Search for similar feedback by topic or issue"
           >
           <button class="btn btn-search" id="aiSearchBtn">Search</button>
         </div>
@@ -102,9 +205,9 @@
       </div>
 
       <div class="card">
-        <h3>💬 Feedback Items</h3>
+        <h3>Feedback Items</h3>
         <div class="filters">
-          <input type="text" class="search-input" id="searchInput" placeholder="🔍 Search feedback...">
+          <input type="text" class="search-input" id="searchInput" placeholder="Search feedback...">
           <select class="filter-select" id="sourceFilter">
             <option value="">All Sources</option>
             <option value="support_ticket">Support Ticket</option>
@@ -126,8 +229,6 @@
             <option value="high">High</option>
             <option value="critical">Critical</option>
           </select>
-          <button class="btn btn-primary" id="analyzeBtn">🤖 Analyze Feedback</button>
-          <button class="btn btn-secondary" id="aiSummaryBtn">✨ AI Summary</button>
         </div>
 
         <div class="spinner" id="loadingSpinner"></div>
@@ -141,14 +242,14 @@
               <th>Sentiment</th>
               <th>Urgency</th>
               <th>Themes</th>
-              <th>📎</th>
+              <th>Attachment</th>
               <th>Date</th>
             </tr>
           </thead>
           <tbody id="feedbackTableBody">
           </tbody>
         </table>
-        <div class="table-hint">💡 Hover over any row to view details</div>
+        <div class="table-hint">Click any row to view details</div>
       </div>
     </main>
   </div>
@@ -194,6 +295,7 @@
     </div>
   </div>
 
+  <script src="toast.js"></script>
   <script>
     const API_BASE = '';
     let allFeedback = [];
@@ -216,6 +318,7 @@
       } catch (error) {
         console.error('Error fetching analytics:', error);
         showError('Failed to load analytics data');
+        toast.error('Failed to load analytics data');
       }
     }
 
@@ -227,9 +330,11 @@
         allFeedback = await response.json();
         renderFeedbackTable();
         showLoading(false);
+        toast.success(`Loaded ${allFeedback.length} feedback items`, 2000);
       } catch (error) {
         console.error('Error fetching feedback:', error);
         showError('Failed to load feedback data');
+        toast.error('Failed to load feedback data');
         showLoading(false);
       }
     }
@@ -809,6 +914,7 @@
       } catch (error) {
         console.error('AI search error:', error);
         resultsContent.innerHTML = '<p style="text-align: center; color: #ef4444; padding: 2rem;">❌ Search failed. Please try again.</p>';
+        toast.error('Search failed. Please try again.');
       } finally {
         searchBtn.disabled = false;
         searchBtn.textContent = 'Search';
@@ -887,30 +993,50 @@
       }
     }
 
-    document.getElementById('analyzeBtn').onclick = analyzeFeedback;
-    document.getElementById('aiSummaryBtn').onclick = showAISummary;
-    document.getElementById('runAiAnalysisBtn').onclick = runAiAnalysis;
-    document.getElementById('indexEmbeddingsBtn').onclick = indexAllEmbeddings;
-    document.getElementById('aiSearchBtn').onclick = performAISearch;
-    document.getElementById('clearSearchBtn').onclick = clearAISearch;
-    document.getElementById('closeAttachmentBtn').onclick = closeAttachmentModal;
-    document.getElementById('addFeedbackFab').onclick = showAddFeedbackForm;
-    document.getElementById('closeModalBtn').onclick = closeModal;
-    document.getElementById('closeAiSummaryBtn').onclick = closeAiSummaryModal;
-    document.getElementById('attachmentModal').onclick = (e) => {
-      if (e.target.id === 'attachmentModal') closeAttachmentModal();
-    };
-    document.getElementById('feedbackModal').onclick = (e) => {
-      if (e.target.id === 'feedbackModal') closeModal();
-    };
-    document.getElementById('aiSummaryModal').onclick = (e) => {
-      if (e.target.id === 'aiSummaryModal') closeAiSummaryModal();
-    };
+    // Set up event handlers for existing elements only
+    const aiSearchBtn = document.getElementById('aiSearchBtn');
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
+    const closeAttachmentBtn = document.getElementById('closeAttachmentBtn');
+    const addFeedbackFab = document.getElementById('addFeedbackFab');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const closeAiSummaryBtn = document.getElementById('closeAiSummaryBtn');
+    
+    if (aiSearchBtn) aiSearchBtn.onclick = performAISearch;
+    if (clearSearchBtn) clearSearchBtn.onclick = clearAISearch;
+    if (closeAttachmentBtn) closeAttachmentBtn.onclick = closeAttachmentModal;
+    if (addFeedbackFab) addFeedbackFab.onclick = showAddFeedbackForm;
+    if (closeModalBtn) closeModalBtn.onclick = closeModal;
+    if (closeAiSummaryBtn) closeAiSummaryBtn.onclick = closeAiSummaryModal;
+    
+    const attachmentModal = document.getElementById('attachmentModal');
+    const feedbackModal = document.getElementById('feedbackModal');
+    const aiSummaryModal = document.getElementById('aiSummaryModal');
+    
+    if (attachmentModal) {
+      attachmentModal.onclick = (e) => {
+        if (e.target.id === 'attachmentModal') closeAttachmentModal();
+      };
+    }
+    if (feedbackModal) {
+      feedbackModal.onclick = (e) => {
+        if (e.target.id === 'feedbackModal') closeModal();
+      };
+    }
+    if (aiSummaryModal) {
+      aiSummaryModal.onclick = (e) => {
+        if (e.target.id === 'aiSummaryModal') closeAiSummaryModal();
+      };
+    }
 
-    document.getElementById('searchInput').oninput = renderFeedbackTable;
-    document.getElementById('sourceFilter').onchange = renderFeedbackTable;
-    document.getElementById('sentimentFilter').onchange = renderFeedbackTable;
-    document.getElementById('urgencyFilter').onchange = renderFeedbackTable;
+    const searchInput = document.getElementById('searchInput');
+    const sourceFilter = document.getElementById('sourceFilter');
+    const sentimentFilter = document.getElementById('sentimentFilter');
+    const urgencyFilter = document.getElementById('urgencyFilter');
+    
+    if (searchInput) searchInput.oninput = renderFeedbackTable;
+    if (sourceFilter) sourceFilter.onchange = renderFeedbackTable;
+    if (sentimentFilter) sentimentFilter.onchange = renderFeedbackTable;
+    if (urgencyFilter) urgencyFilter.onchange = renderFeedbackTable;
 
     async function fetchWorkflowStatus() {
       try {
@@ -954,15 +1080,32 @@
       }
     }
 
-    refreshData();
-    setInterval(refreshData, 30000);
-    
-    // Poll workflow status every 10 seconds
-    fetchWorkflowStatus();
-    setInterval(fetchWorkflowStatus, 10000);
-    
-    // Update status on initial load and after each refresh
-    setTimeout(updateAnalysisStatus, 1000);
+    // Initialize when DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('Dashboard initializing...');
+      refreshData();
+      setInterval(refreshData, 30000);
+      
+      // Poll workflow status every 10 seconds
+      fetchWorkflowStatus();
+      setInterval(fetchWorkflowStatus, 10000);
+      
+      // Update status on initial load and after each refresh
+      setTimeout(updateAnalysisStatus, 1000);
+    });
+
+    // Also try to load immediately in case DOM is already loaded
+    if (document.readyState === 'loading') {
+      // DOM is still loading, event listener will handle it
+    } else {
+      // DOM is already loaded
+      console.log('Dashboard initializing (DOM already ready)...');
+      refreshData();
+      setInterval(refreshData, 30000);
+      fetchWorkflowStatus();
+      setInterval(fetchWorkflowStatus, 10000);
+      setTimeout(updateAnalysisStatus, 1000);
+    }
   </script>
 </body>
 </html>

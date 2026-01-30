@@ -14,6 +14,7 @@ import { searchSimilar, indexAllFeedback } from './embeddings.js';
 import { uploadFile, downloadFile } from './uploads.js';
 import indexHtml from '../public/index.html';
 import stylesCss from '../public/styles.css';
+import toastCss from '../public/toast.css';
 
 /**
  * Helper function to read static files
@@ -25,6 +26,7 @@ function readFile(path) {
     '/': indexHtml,
     '/index.html': indexHtml,
     '/styles.css': stylesCss,
+    '/toast.css': toastCss,
   };
 
   if (path in files) {
@@ -87,11 +89,14 @@ export default {
             status: 200,
             headers: {
               ...corsHeaders,
-              'Content-Type': 'text/css; charset=utf-8',
+              'Content-Type': 'text/css',
+              'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+              'Pragma': 'no-cache',
+              'Expires': '0',
             },
           });
         } catch (error) {
-          return new Response('File not found', {
+          return new Response('CSS not found', {
             status: 404,
             headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
           });
@@ -125,15 +130,130 @@ export default {
             status: 200,
             headers: {
               ...corsHeaders,
-              'Content-Type': 'text/css; charset=utf-8',
+              'Content-Type': 'text/css',
             },
           });
         } catch (error) {
-          return new Response('File not found', {
+          return new Response('CSS not found', {
             status: 404,
             headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
           });
         }
+      }
+
+      // Route: GET /toast.css - Serve Toast CSS
+      if (path === '/toast.css' && method === 'GET') {
+        try {
+          const content = readFile('/toast.css');
+          return new Response(content, {
+            status: 200,
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'text/css',
+              'Cache-Control': 'no-cache',
+            },
+          });
+        } catch (error) {
+          return new Response('CSS not found', {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+          });
+        }
+      }
+
+      // Route: GET /toast.js - Serve Toast JS
+      if (path === '/toast.js' && method === 'GET') {
+        const toastJsContent = `/**
+ * Toast Notification System
+ * Modern, elegant toast notifications with animations
+ */
+
+class ToastManager {
+  constructor() {
+    this.container = null;
+    this.init();
+  }
+
+  init() {
+    // Create toast container if it doesn't exist
+    if (!document.getElementById('toast-container')) {
+      this.container = document.createElement('div');
+      this.container.id = 'toast-container';
+      this.container.className = 'toast-container';
+      document.body.appendChild(this.container);
+    } else {
+      this.container = document.getElementById('toast-container');
+    }
+  }
+
+  show(message, type = 'info', duration = 4000) {
+    const toast = document.createElement('div');
+    toast.className = \`toast toast-\${type}\`;
+    
+    const icon = this.getIcon(type);
+    
+    toast.innerHTML = \`
+      <div class="toast-icon">\${icon}</div>
+      <div class="toast-content">
+        <div class="toast-message">\${message}</div>
+      </div>
+      <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+    \`;
+
+    this.container.appendChild(toast);
+
+    // Trigger animation
+    setTimeout(() => toast.classList.add('toast-show'), 10);
+
+    // Auto remove
+    if (duration > 0) {
+      setTimeout(() => {
+        toast.classList.remove('toast-show');
+        setTimeout(() => toast.remove(), 300);
+      }, duration);
+    }
+
+    return toast;
+  }
+
+  getIcon(type) {
+    const icons = {
+      success: '✓',
+      error: '✕',
+      warning: '⚠',
+      info: 'ℹ'
+    };
+    return icons[type] || icons.info;
+  }
+
+  success(message, duration) {
+    return this.show(message, 'success', duration);
+  }
+
+  error(message, duration) {
+    return this.show(message, 'error', duration);
+  }
+
+  warning(message, duration) {
+    return this.show(message, 'warning', duration);
+  }
+
+  info(message, duration) {
+    return this.show(message, 'info', duration);
+  }
+}
+
+// Global toast instance
+const toast = new ToastManager();`;
+        
+        return new Response(toastJsContent, {
+          status: 200,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/javascript',
+            'Cache-Control': 'no-cache',
+          },
+        });
       }
 
       // Route: GET /app.js - Serve JavaScript (if exists)
